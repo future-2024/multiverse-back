@@ -3,6 +3,15 @@ var randtoken = require("rand-token");
 const { uploadpdf } = require("../file/file.controller");
 const express = require("express");
 const axios = require("axios");
+const aws = require("aws-sdk");
+const { v4: uuidv4 } = require("uuid");
+const s3 = new aws.S3();
+
+// s3.config.update({
+//   secretAccessKey: process.env.MY_AWS_SECRET_ACCESS_KEY,
+//   accessKeyId: process.env.MY_AWS_ACCESS_KEY_ID,
+//   // region: "us-east-2",
+// });
 
 const app = express();
 
@@ -755,53 +764,40 @@ module.exports = {
       return callBack(null, results);
     });
   },
-  updaterca: (data, callBack) => {
+  updaterca:  (data, callBack) => {
     const body = data.body;
     const rca_data = JSON.stringify(body);
     const user = data.decoded.result;
-    const singleUploadpdf = uploadpdf.single("pdf");
 
     var html_to_pdf = require("html-pdf-node");
 
     let options = { format: "A4" };
-    // Example of options with args //
-    // let options = { format: 'A4', args: ['--no-sandbox', '--disable-setuid-sandbox'] };
+    let file = { content: "<h1>This is Dejan Template!</h1>" };
+    
+    html_to_pdf
+    .generatePdf(file, options)
+    .then(async(pdfBuffer) => {
+      const newId = uuidv4();
+      const fileName = Date.now().toString() + newId + '.pdf';
+      var params = {
+        Bucket: "multiverse-files",
+        Key: fileName,
+        Body: pdfBuffer,
+        ContentType : 'application/pdf',
+        ACL: "public-read"
+      }
+      const s3 = new aws.S3({
+        secretAccessKey: process.env.MY_AWS_SECRET_ACCESS_KEY,
+        accessKeyId: process.env.MY_AWS_ACCESS_KEY_ID,
+      });
 
-    let file = { content: "<h1>Welcome to html-pdf-node</h1>" };
 
-    html_to_pdf.generatePdf(file, options).then((pdfBuffer) => {
-      console.log("PDF Buffer:-", pdfBuffer);
-      data.file = pdfBuffer;
-
-      singleUploadpdf(data, res, function (err) {
+      s3.upload(params, function (err, data) {
         if (err) {
           console.log(err);
-        } else {
-          console.log(res);
-          return res.status(200).json({
-            success: 1,
-            data: {
-              files: {
-                location: req.file.location,
-              },
-            },
-          });
-        }
-      });
-    });
-    let query = "";
-    let valuearay = [];
-    if (user.level == "admin") {
-      (query = `update complaints set rca_data=? where id=?`),
-        (valuearay = [rca_data, body.id]);
-    }
-    console.log(query);
-    pool.query(query, valuearay, (error, results, fields) => {
-      if (error) {
-        callBack(error);
-      }
-
-      return callBack(null, results);
+        }else{
+          return callBack(null, data.Location);
+      }});
     });
   },
   updatews: (data, callBack) => {

@@ -23,6 +23,7 @@ router.post("/upload", function (req, res) {
 });
 
 router.post("/uploadpdf", function (req, res) {
+  console.log(req);
   singleUploadpdf(req, res, function (err) {
     if (err) {
       console.log(err);

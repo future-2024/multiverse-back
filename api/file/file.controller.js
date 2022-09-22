@@ -51,6 +51,7 @@ const uploadpdf = multer({
     s3,
     bucket: "multiverse-files",
     key: function (req, file, cb) {
+      console.log('buffer');
       var filename = file.originalname;
       var ext = filename.substring(filename.indexOf("."));
       const newId = uuidv4();
